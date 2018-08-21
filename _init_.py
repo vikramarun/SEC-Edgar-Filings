@@ -98,6 +98,6 @@ for i in range(0,len(CIKS)):
     del df3['Owner CIK']
     print(df3)
     # Save DF to excel
-    writer = pd.ExcelWriter(COVERAGE[i]+'.xlsx')
+    writer = pd.ExcelWriter(COVERAGE[i]+'insiders.xlsx')
     df3.to_excel(writer,'Transactions',index=False)
     writer.save()
