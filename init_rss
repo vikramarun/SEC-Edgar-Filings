@@ -13,6 +13,7 @@ from email import encoders
 ############################## INPUT COVERAGE LIST #############################
 COVERAGE = ['TLGT','TEVA','SLGL','ATRS','PRGO','PLXP','MYL','MNK','LCI','FLXN',
             'ENDP','DERM','AMRX','ANIP','AMPH','AKRX','AGN','AERI','ADMP']
+youremail = 'vikram.arun95@gmail.com'
 # Convert Tickers to SEC EDGAR CIK
 def getCIKs(tickers):
     URL = 'http://www.sec.gov/cgi-bin/browse-edgar?CIK={}&Find=Search&owner=exclude&action=getcompany'
@@ -105,6 +106,7 @@ def parse4(CIKcodes):
             df3['# Securities Transacted'] = pd.to_numeric(df3['# Securities Transacted'],downcast='signed')
             df3['# Securities Owned'] = pd.to_numeric(df3['# Securities Owned'],downcast='signed')
             df3['Direct/Indirect Ownership'] = df3['Direct/Indirect Ownership'].str[2:]
+            df3['Owner Title'] = df3['Owner Title'].str.title()
             # Get rid of not helpful columns
             del df3['Deemed Execution Date']
             del df3['Owner CIK']
@@ -131,12 +133,17 @@ def parse4(CIKcodes):
                 fill = fill+1
             writer.save()
             try:
-                send_mail('vikram.arun95@gmail.com',COVERAGE[ref]+' Insider Update',
-                          df3['Form Link'].iloc[0],
+                if df3['Acquisition/Disposition'].iloc[0] == 'A':
+                    text =  df3['Owner Title'].iloc[0] + ' acquires ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
+                if df3['Acquisition/Disposition'].iloc[0] == 'D':
+                    text =  df3['Owner Title'].iloc[0] + ' disposes ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
+                print(text)
+                send_mail(youremail,COVERAGE[ref]+' Insider Update',
+                          text,
                           open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
                           COVERAGE[ref]+' Insider Activity.xlsx')
-            except IndexError:
-                send_mail('vikram.arun95@gmail.com',COVERAGE[ref]+' Insider Update',
+            except IndexError or AttributeError:
+                send_mail(youremail,COVERAGE[ref]+' Insider Update',
                           'Error occured, check SEC EDGAR source filing',
                           open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
                           COVERAGE[ref]+' Insider Activity.xlsx')
@@ -217,4 +224,4 @@ while True:
             with open('rss', 'wb') as fp:
                 pickle.dump(newCIKS, fp)
         # Loop forever with a pause
-        time.sleep(5)
+        time.sleep(60)
