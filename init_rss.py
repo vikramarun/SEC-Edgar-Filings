@@ -88,66 +88,70 @@ def parse4(CIKcodes):
                         pass
                 except NameError:
                     pass
-            df2['Form Link'] = newlinks # replace Form 4 with edited urls
-            # VLOOKUP function to combine dataframes with Type of Owner info
-            officertitle = []
-            for j in range(0,len(df2.index)):
-                vlookup = df1.index[df1['Reporting Owner'] == df2['Reporting Owner'].iloc[j]].tolist()
-                officertitle.append(df1.loc[vlookup,'Type of Owner'].to_string())
-            officertitle = [s[6:] for s in officertitle] # formatting
-            df2['Owner Title'] = officertitle # add owner title to df
-            # Reorganize dataframe to better match Form 4 layout
-            df3 = df2[['Reporting Owner','Owner Title','Security Name',
-                        'Transaction Date','Transaction Type', '# Securities Transacted',
-                        'Acquisition/Disposition', 'Deemed Execution Date',
-                        '# Securities Owned','Direct/Indirect Ownership','Owner CIK',
-                        'Form Link',]]
-            # Format columns
-            df3['# Securities Transacted'] = pd.to_numeric(df3['# Securities Transacted'],downcast='signed')
-            df3['# Securities Owned'] = pd.to_numeric(df3['# Securities Owned'],downcast='signed')
-            df3['Direct/Indirect Ownership'] = df3['Direct/Indirect Ownership'].str[2:]
-            df3['Owner Title'] = df3['Owner Title'].str.title()
-            # Get rid of not helpful columns
-            del df3['Deemed Execution Date']
-            del df3['Owner CIK']
-            # Save DF to excel
             ref = CIKS.index(CIKcodes[i])
-            writer = pd.ExcelWriter(COVERAGE[ref]+' Insider Activity.xlsx', engine='xlsxwriter')
-            df3.to_excel(writer,'Transactions',index=False)
-            worksheet = writer.sheets['Transactions']
-            # Set column widths
-            worksheet.set_column('A:A',25)
-            worksheet.set_column('B:B',45)
-            worksheet.set_column('C:C',45)
-            worksheet.set_column('D:D',16)
-            worksheet.set_column('E:E',16)
-            worksheet.set_column('F:F',21)
-            worksheet.set_column('G:G',22)
-            worksheet.set_column('H:H',18)
-            worksheet.set_column('I:I',24)
-            worksheet.set_column('J:J',95)
-            # Make Hyperlinks
-            fill = 0
-            for h in range(2,len(df3.index)):
-                worksheet.write_url('J'+str(h), newlinks[fill])
-                fill = fill+1
-            writer.save()
-            try:
-                if df3['Acquisition/Disposition'].iloc[0] == 'A':
-                    text =  df3['Owner Title'].iloc[0] + ' acquires ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
-                if df3['Acquisition/Disposition'].iloc[0] == 'D':
-                    text =  df3['Owner Title'].iloc[0] + ' disposes ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
-                print(text)
-                send_mail(youremail,COVERAGE[ref]+' Insider Update',
-                          text,
-                          open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
-                          COVERAGE[ref]+' Insider Activity.xlsx')
-            except IndexError or AttributeError:
-                send_mail(youremail,COVERAGE[ref]+' Insider Update',
-                          'Error occured, check SEC EDGAR source filing',
-                          open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
-                          COVERAGE[ref]+' Insider Activity.xlsx')
-            print(COVERAGE[ref]+' initial download done')
+            if df2.empty:
+                print(COVERAGE[ref]+' download failed')
+                pass
+            else:
+                df2['Form Link'] = newlinks # replace Form 4 with edited urls
+                # VLOOKUP function to combine dataframes with Type of Owner info
+                officertitle = []
+                for j in range(0,len(df2.index)):
+                    vlookup = df1.index[df1['Reporting Owner'] == df2['Reporting Owner'].iloc[j]].tolist()
+                    officertitle.append(df1.loc[vlookup,'Type of Owner'].to_string())
+                officertitle = [s[6:] for s in officertitle] # formatting
+                df2['Owner Title'] = officertitle # add owner title to df
+                # Reorganize dataframe to better match Form 4 layout
+                df3 = df2[['Reporting Owner','Owner Title','Security Name',
+                            'Transaction Date','Transaction Type', '# Securities Transacted',
+                            'Acquisition/Disposition', 'Deemed Execution Date',
+                            '# Securities Owned','Direct/Indirect Ownership','Owner CIK',
+                            'Form Link',]]
+                # Format columns
+                df3['# Securities Transacted'] = pd.to_numeric(df3['# Securities Transacted'],downcast='signed')
+                df3['# Securities Owned'] = pd.to_numeric(df3['# Securities Owned'],downcast='signed')
+                df3['Direct/Indirect Ownership'] = df3['Direct/Indirect Ownership'].str[2:]
+                df3['Owner Title'] = df3['Owner Title'].str.title()
+                # Get rid of not helpful columns
+                del df3['Deemed Execution Date']
+                del df3['Owner CIK']
+                # Save DF to excel
+    
+                writer = pd.ExcelWriter(COVERAGE[ref]+' Insider Activity.xlsx', engine='xlsxwriter')
+                df3.to_excel(writer,'Transactions',index=False)
+                worksheet = writer.sheets['Transactions']
+                # Set column widths
+                worksheet.set_column('A:A',25)
+                worksheet.set_column('B:B',45)
+                worksheet.set_column('C:C',45)
+                worksheet.set_column('D:D',16)
+                worksheet.set_column('E:E',16)
+                worksheet.set_column('F:F',21)
+                worksheet.set_column('G:G',22)
+                worksheet.set_column('H:H',18)
+                worksheet.set_column('I:I',24)
+                worksheet.set_column('J:J',95)
+                # Make Hyperlinks
+                fill = 0
+                for h in range(2,len(df3.index)):
+                    worksheet.write_url('J'+str(h), newlinks[fill])
+                    fill = fill+1
+                writer.save()
+                try:
+                    if df3['Acquisition/Disposition'].iloc[0] == 'A':
+                        text =  df3['Owner Title'].iloc[0] + ' acquires ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
+                    if df3['Acquisition/Disposition'].iloc[0] == 'D':
+                        text =  df3['Owner Title'].iloc[0] + ' disposes ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
+                    send_mail(youremail,COVERAGE[ref]+' Insider Update',
+                              text,
+                              open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
+                              COVERAGE[ref]+' Insider Activity.xlsx')
+                except IndexError or AttributeError:
+                    send_mail(youremail,COVERAGE[ref]+' Insider Update',
+                              'Error occured, check SEC EDGAR source filing',
+                              open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
+                              COVERAGE[ref]+' Insider Activity.xlsx')
+                print(COVERAGE[ref]+' download done')
 def link2form(urllinks):
     try:
         newlinks = []
