@@ -29,7 +29,7 @@ def getCIKs(tickers):
 def parse4(CIKcode):
         # Parse requests from appropriate url
         url = 'https://www.sec.gov/cgi-bin/own-disp?action=getissuer&CIK={}'\
-                .format(CIKcodes[i])
+                .format(CIKcode)
         response = requests.get(url).text
         soup = BeautifulSoup(response,"lxml")
         rows = soup.find_all('tr')
