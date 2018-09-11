@@ -26,132 +26,131 @@ def getCIKs(tickers):
             cikstore.append(results[0])
     return(cikstore)
 # Function to get 4k from CIK Code
-def parse4(CIKcodes):
-    for i in range(0,len(CIKcodes)):
-            # Parse requests from appropriate url
-            url = 'https://www.sec.gov/cgi-bin/own-disp?action=getissuer&CIK={}'\
-                    .format(CIKcodes[i])
-            response = requests.get(url).text
-            soup = BeautifulSoup(response,"lxml")
-            rows = soup.find_all('tr')
-            # Get and edit hyperlinks to Form 4 documents
-            links = []
-            for link in soup.find_all('a',href=True):
-                links.append(link['href'])
-            del links[-3:]
-            links = links[-80:]
-            links = ['https://www.sec.gov'+ s for s in links]
-            newlinks = link2form(links)
-            start = -1
-            # Get first table
-            df1 = pd.DataFrame(columns = ['Reporting Owner','Filings','Transaction Date',
-                                            'Type of Owner'])
-            # Find start and stop points in the xml
-            for row in rows:
-                cols = row.find_all('td')
-                cols = [x.text.strip() for x in cols]
-                start = start + 1
-                if cols == ['Owner', 'Filings', 'Transaction Date', 'Type of Owner']:
-                    startmark = start
-                if cols == []:
-                    endmark = start-1
-            start = -1
-            # Scrape and save appropriate data to df
-            for row in rows:
-                cols = row.find_all('td')
-                cols = [x.text.strip() for x in cols]
-                start = start + 1
-                try:
-                    if start>startmark and start<=endmark:
-                        df1.loc[start] = cols
-                    else:
-                        pass
-                except NameError:
+def parse4(CIKcode):
+        # Parse requests from appropriate url
+        url = 'https://www.sec.gov/cgi-bin/own-disp?action=getissuer&CIK={}'\
+                .format(CIKcodes[i])
+        response = requests.get(url).text
+        soup = BeautifulSoup(response,"lxml")
+        rows = soup.find_all('tr')
+        # Get and edit hyperlinks to Form 4 documents
+        links = []
+        for link in soup.find_all('a',href=True):
+            links.append(link['href'])
+        del links[-3:]
+        links = links[-80:]
+        links = ['https://www.sec.gov'+ s for s in links]
+        newlinks = link2form(links)
+        start = -1
+        # Get first table
+        df1 = pd.DataFrame(columns = ['Reporting Owner','Filings','Transaction Date',
+                                        'Type of Owner'])
+        # Find start and stop points in the xml
+        for row in rows:
+            cols = row.find_all('td')
+            cols = [x.text.strip() for x in cols]
+            start = start + 1
+            if cols == ['Owner', 'Filings', 'Transaction Date', 'Type of Owner']:
+                startmark = start
+            if cols == []:
+                endmark = start-1
+        start = -1
+        # Scrape and save appropriate data to df
+        for row in rows:
+            cols = row.find_all('td')
+            cols = [x.text.strip() for x in cols]
+            start = start + 1
+            try:
+                if start>startmark and start<=endmark:
+                    df1.loc[start] = cols
+                else:
                     pass
-            # Get second table
-            df2 = pd.DataFrame(columns = ['Acquisition/Disposition','Transaction Date',
-                                            'Deemed Execution Date','Reporting Owner',
-                                            'Form Link','Transaction Type',
-                                            'Direct/Indirect Ownership',
-                                            '# Securities Transacted','# Securities Owned',
-                                            'Owner Title','Owner CIK','Security Name'])
-            start = -1
-            # Scrape and save appropriate data to df
-            for row in rows:
-                cols = row.find_all('td')
-                cols = [x.text.strip() for x in cols]
-                start = start + 1
-                try:
-                    if start>(endmark+1) and start<(len(rows)-1):
-                        df2.loc[start] = cols
-                    else:
-                        pass
-                except NameError:
-                    pass
-            ref = CIKS.index(CIKcodes[i])
-            if df2.empty:
-                print(COVERAGE[ref]+' download failed')
+            except NameError:
                 pass
-            else:
-                df2['Form Link'] = newlinks # replace Form 4 with edited urls
-                # VLOOKUP function to combine dataframes with Type of Owner info
-                officertitle = []
-                for j in range(0,len(df2.index)):
-                    vlookup = df1.index[df1['Reporting Owner'] == df2['Reporting Owner'].iloc[j]].tolist()
-                    officertitle.append(df1.loc[vlookup,'Type of Owner'].to_string())
-                officertitle = [s[6:] for s in officertitle] # formatting
-                df2['Owner Title'] = officertitle # add owner title to df
-                # Reorganize dataframe to better match Form 4 layout
-                df3 = df2[['Reporting Owner','Owner Title','Security Name',
-                            'Transaction Date','Transaction Type', '# Securities Transacted',
-                            'Acquisition/Disposition', 'Deemed Execution Date',
-                            '# Securities Owned','Direct/Indirect Ownership','Owner CIK',
-                            'Form Link',]]
-                # Format columns
-                df3['# Securities Transacted'] = pd.to_numeric(df3['# Securities Transacted'],downcast='signed')
-                df3['# Securities Owned'] = pd.to_numeric(df3['# Securities Owned'],downcast='signed')
-                df3['Direct/Indirect Ownership'] = df3['Direct/Indirect Ownership'].str[2:]
-                df3['Owner Title'] = df3['Owner Title'].str.title()
-                # Get rid of not helpful columns
-                del df3['Deemed Execution Date']
-                del df3['Owner CIK']
-                # Save DF to excel
+        # Get second table
+        df2 = pd.DataFrame(columns = ['Acquisition/Disposition','Transaction Date',
+                                        'Deemed Execution Date','Reporting Owner',
+                                        'Form Link','Transaction Type',
+                                        'Direct/Indirect Ownership',
+                                        '# Securities Transacted','# Securities Owned',
+                                        'Owner Title','Owner CIK','Security Name'])
+        start = -1
+        # Scrape and save appropriate data to df
+        for row in rows:
+            cols = row.find_all('td')
+            cols = [x.text.strip() for x in cols]
+            start = start + 1
+            try:
+                if start>(endmark+1) and start<(len(rows)-1):
+                    df2.loc[start] = cols
+                else:
+                    pass
+            except NameError:
+                pass
+        ref = CIKS.index(CIKcode)
+        if df2.empty:
+            print(COVERAGE[ref]+' download failed')
+            pass
+        else:
+            df2['Form Link'] = newlinks # replace Form 4 with edited urls
+            # VLOOKUP function to combine dataframes with Type of Owner info
+            officertitle = []
+            for j in range(0,len(df2.index)):
+                vlookup = df1.index[df1['Reporting Owner'] == df2['Reporting Owner'].iloc[j]].tolist()
+                officertitle.append(df1.loc[vlookup,'Type of Owner'].to_string())
+            officertitle = [s[6:] for s in officertitle] # formatting
+            df2['Owner Title'] = officertitle # add owner title to df
+            # Reorganize dataframe to better match Form 4 layout
+            df3 = df2[['Reporting Owner','Owner Title','Security Name',
+                        'Transaction Date','Transaction Type', '# Securities Transacted',
+                        'Acquisition/Disposition', 'Deemed Execution Date',
+                        '# Securities Owned','Direct/Indirect Ownership','Owner CIK',
+                        'Form Link',]]
+            # Format columns
+            df3['# Securities Transacted'] = pd.to_numeric(df3['# Securities Transacted'],downcast='signed')
+            df3['# Securities Owned'] = pd.to_numeric(df3['# Securities Owned'],downcast='signed')
+            df3['Direct/Indirect Ownership'] = df3['Direct/Indirect Ownership'].str[2:]
+            df3['Owner Title'] = df3['Owner Title'].str.title()
+            # Get rid of not helpful columns
+            del df3['Deemed Execution Date']
+            del df3['Owner CIK']
+            # Save DF to excel
 
-                writer = pd.ExcelWriter(COVERAGE[ref]+' Insider Activity.xlsx', engine='xlsxwriter')
-                df3.to_excel(writer,'Transactions',index=False)
-                worksheet = writer.sheets['Transactions']
-                # Set column widths
-                worksheet.set_column('A:A',25)
-                worksheet.set_column('B:B',45)
-                worksheet.set_column('C:C',45)
-                worksheet.set_column('D:D',16)
-                worksheet.set_column('E:E',16)
-                worksheet.set_column('F:F',21)
-                worksheet.set_column('G:G',22)
-                worksheet.set_column('H:H',18)
-                worksheet.set_column('I:I',24)
-                worksheet.set_column('J:J',95)
-                # Make Hyperlinks
-                fill = 0
-                for h in range(2,len(df3.index)):
-                    worksheet.write_url('J'+str(h), newlinks[fill])
-                    fill = fill+1
-                writer.save()
-                try:
-                    if df3['Acquisition/Disposition'].iloc[0] == 'A':
-                        text =  df3['Owner Title'].iloc[0] + ' acquires ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
-                    if df3['Acquisition/Disposition'].iloc[0] == 'D':
-                        text =  df3['Owner Title'].iloc[0] + ' disposes ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
-                    send_mail(youremail,COVERAGE[ref]+' Insider Update',
-                              text,
-                              open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
-                              COVERAGE[ref]+' Insider Activity.xlsx')
-                except IndexError or AttributeError:
-                    send_mail(youremail,COVERAGE[ref]+' Insider Update',
-                              'Error occured, check SEC EDGAR source filing',
-                              open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
-                              COVERAGE[ref]+' Insider Activity.xlsx')
-                print(COVERAGE[ref]+' download done')
+            writer = pd.ExcelWriter(COVERAGE[ref]+' Insider Activity.xlsx', engine='xlsxwriter')
+            df3.to_excel(writer,'Transactions',index=False)
+            worksheet = writer.sheets['Transactions']
+            # Set column widths
+            worksheet.set_column('A:A',25)
+            worksheet.set_column('B:B',45)
+            worksheet.set_column('C:C',45)
+            worksheet.set_column('D:D',16)
+            worksheet.set_column('E:E',16)
+            worksheet.set_column('F:F',21)
+            worksheet.set_column('G:G',22)
+            worksheet.set_column('H:H',18)
+            worksheet.set_column('I:I',24)
+            worksheet.set_column('J:J',95)
+            # Make Hyperlinks
+            fill = 0
+            for h in range(2,len(df3.index)):
+                worksheet.write_url('J'+str(h), newlinks[fill])
+                fill = fill+1
+            writer.save()
+            try:
+                if df3['Acquisition/Disposition'].iloc[0] == 'A':
+                    text =  df3['Owner Title'].iloc[0] + ' acquires ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
+                if df3['Acquisition/Disposition'].iloc[0] == 'D':
+                    text =  df3['Owner Title'].iloc[0] + ' disposes ' + str(df3['# Securities Transacted'].iloc[0]) + ' of ' + df3['Security Name'].iloc[0] + ". More info here: " + df3['Form Link'].iloc[0]
+                send_mail(youremail,COVERAGE[ref]+' Insider Update',
+                          text,
+                          open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
+                          COVERAGE[ref]+' Insider Activity.xlsx')
+            except IndexError or AttributeError:
+                send_mail(youremail,COVERAGE[ref]+' Insider Update',
+                          'Error occured, check SEC EDGAR source filing',
+                          open(COVERAGE[ref]+' Insider Activity.xlsx', "rb").read(),
+                          COVERAGE[ref]+' Insider Activity.xlsx')
+            print(COVERAGE[ref]+' download done')
 def link2form(urllinks):
     try:
         newlinks = []
@@ -223,7 +222,8 @@ while True:
     # The first time it's run, need to initialize all the data files
     if count == 0:
         print('Starting Initial Download...')
-        parse4(CIKS)
+        for k in range(0,len(CIKS)):
+            parse4(CIKS[k])
         print('All initial downloads are done! Will continue to update...')
         count = count + 1
     # After that, we only parse the RSS feed instead (won't get blocked that way)
