@@ -233,7 +233,7 @@ while True:
             oldrss = rssfeed()
             if oldrss: 
                 for key in oldrss.keys():
-                    print(CIKS.index(key))
+                    print(key)
                     parse4(key)
             else:
                 print('Nothing to update')
@@ -243,7 +243,7 @@ while True:
             diffrss = difference_dict(newrss,oldrss)
             if diffrss: 
                 for key in diffrss.keys():
-                    print(CIKS.index(key))
+                    print(key)
                     parse4(key)
             else:
                 print('Nothing to update')
