@@ -13,7 +13,7 @@ from email import encoders
 ############################## INPUT COVERAGE LIST #############################
 COVERAGE = ['TLGT','TEVA','SLGL','ATRS','PRGO','PLXP','MYL','MNK','LCI','FLXN',
             'ENDP','DERM','AMRX','ANIP','AMPH','AKRX','AGN','AERI','ADMP']
-youremail = 'Vikram.Arun@RaymondJames.com'
+youremail = ''
 # Convert Tickers to SEC EDGAR CIK
 def getCIKs(tickers):
     URL = 'http://www.sec.gov/cgi-bin/browse-edgar?CIK={}&Find=Search&owner=exclude&action=getcompany'
