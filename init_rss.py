@@ -13,17 +13,17 @@ from email import encoders
 ############################## INPUT COVERAGE LIST #############################
 COVERAGE = ['TLGT','TEVA','SLGL','ATRS','PRGO','PLXP','MYL','MNK','LCI','FLXN',
             'ENDP','DERM','AMRX','ANIP','AMPH','AKRX','AGN','AERI','ADMP']
-youremail = 'vikram.arun95@gmail.com'
+youremail = 'Vikram.Arun@RaymondJames.com'
 # Convert Tickers to SEC EDGAR CIK
 def getCIKs(tickers):
     URL = 'http://www.sec.gov/cgi-bin/browse-edgar?CIK={}&Find=Search&owner=exclude&action=getcompany'
-    CIK_RE = re.compile(r'.*CIK=(\d{10}).*')    
+    CIK_RE = re.compile(r'.*CIK=(\d{10}).*')
     cikstore = []
     for ticker in tickers:
         f = requests.get(URL.format(ticker), stream = True)
         results = CIK_RE.findall(f.text)
         if len(results):
-            cikstore.append(results[0]) 
+            cikstore.append(results[0])
     return(cikstore)
 # Function to get 4k from CIK Code
 def parse4(CIKcodes):
@@ -42,11 +42,11 @@ def parse4(CIKcodes):
             links = links[-80:]
             links = ['https://www.sec.gov'+ s for s in links]
             newlinks = link2form(links)
-            start = -1 
+            start = -1
             # Get first table
             df1 = pd.DataFrame(columns = ['Reporting Owner','Filings','Transaction Date',
                                             'Type of Owner'])
-            # Find start and stop points in the xml 
+            # Find start and stop points in the xml
             for row in rows:
                 cols = row.find_all('td')
                 cols = [x.text.strip() for x in cols]
@@ -116,7 +116,7 @@ def parse4(CIKcodes):
                 del df3['Deemed Execution Date']
                 del df3['Owner CIK']
                 # Save DF to excel
-    
+
                 writer = pd.ExcelWriter(COVERAGE[ref]+' Insider Activity.xlsx', engine='xlsxwriter')
                 df3.to_excel(writer,'Transactions',index=False)
                 worksheet = writer.sheets['Transactions']
@@ -162,11 +162,41 @@ def link2form(urllinks):
             soup = BeautifulSoup(response,"lxml")
             for link in soup.find_all('a',href=True):
                 links.append(link['href'])
-            newlinks.append(links[8])
+            try:
+                newlinks.append(links[8])
+            except:
+                newlinks.append('DIDNT WORK')
         newlinks = ['https://www.sec.gov'+ s for s in newlinks]
         return newlinks
     except requests.exceptions.InvalidURL:
         pass
+def difference_dict(Dict_A, Dict_B):
+    output_dict = {}
+    for key in Dict_A.keys():
+        if key in Dict_B.keys():
+            if Dict_A[key] - Dict_B[key] > 0:
+                output_dict[key] = Dict_A[key] - Dict_B[key]
+        else:
+            output_dict[key] = Dict_A[key]
+    return(output_dict)
+def rssfeed():
+    # Start scraping RSS feed
+    url = 'http://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=&company=&dateb=&owner=only&start=0&count=100&output=atom'
+    response = requests.get(url).text
+    soup = BeautifulSoup(response,"lxml")
+    rows = soup.find_all('title')
+    # Get CIKS on the RSS Feed
+    newCIKS = []
+    for row in rows:
+        newCIKS.append(re.findall('\d+',row.text)[1])
+    newCIKS = newCIKS[1:] # remove year from numbers scraped
+    tickerstoupdate = list(set(CIKS).intersection(newCIKS))
+    countsame = []
+    for c in range(0,len(tickerstoupdate)):
+        cs = newCIKS.count(tickerstoupdate[c])
+        countsame.append(cs)
+    tickdict = dict(zip(tickerstoupdate,countsame))
+    return(tickdict)
 def send_mail(send_to,subject,text,files,filename):
     msg = MIMEMultipart()
     msg['From'] = 'form4updates@gmail.com'
@@ -187,45 +217,35 @@ def send_mail(send_to,subject,text,files,filename):
     smtp.quit()
 # Begin continuous loop
 CIKS = getCIKs(COVERAGE)
-count = 1
+count = 0
+count2 = 0
 while True:
     # The first time it's run, need to initialize all the data files
-    if count == 1:
+    if count == 0:
+        print('Starting Initial Download...')
         parse4(CIKS)
         print('All initial downloads are done! Will continue to update...')
         count = count + 1
     # After that, we only parse the RSS feed instead (won't get blocked that way)
     else:
-        # Start scraping RSS feed
-        url = 'http://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=&company=&dateb=&owner=only&start=0&count=100&output=atom'
-        response = requests.get(url).text
-        soup = BeautifulSoup(response,"lxml")
-        rows = soup.find_all('title')
-        # Get CIKS on the RSS Feed
-        newCIKS = []
-        for row in rows:
-            newCIKS.append(re.findall('\d+',row.text)[1])
-        newCIKS = newCIKS[1:] # remove year from numbers scraped
-        try:
-            # Load recent CIKS file
-            with open ('rss', 'rb') as fp:
-                oldCIKS = pickle.load(fp)
-            if oldCIKS == newCIKS:
-                print('No updates')
-            # See if anything new in the RSS feed is significant to our coverage
+        # The first time it's run, set up the initial RSS file
+        if count2 == 0:
+            oldrss = rssfeed()
+            if oldrss: 
+                for key in oldrss.keys():
+                    print(COVERAGE[CIKS.index(key)])
+                    parse4(key)
             else:
-                tickerstoupdate = list(set(CIKS).intersection(newCIKS))
-                if tickerstoupdate: # significant change, update files
-                    print(tickerstoupdate)
-                    parse4(tickerstoupdate)
-                if not tickerstoupdate: # not significant, pass
-                    print('Something not in coverage updated')
-                # Update CIKS file because it is different
-                with open('rss', 'wb') as fp:
-                    pickle.dump(newCIKS, fp)
-        # Catch exception the first time this is run and create the file
-        except FileNotFoundError:
-            with open('rss', 'wb') as fp:
-                pickle.dump(newCIKS, fp)
-        # Loop forever with a pause
-        time.sleep(60)
+                print('Nothing to update')
+            count2 = count2 + 1
+        else:
+            newrss = rssfeed()
+            diffrss = difference_dict(newrss,oldrss)
+            if diffrss: 
+                for key in diffrss.keys():
+                    print(COVERAGE[CIKS.index(key)])
+                    parse4(key)
+            else:
+                print('Nothing to update')
+            oldrss = newrss
+    time.sleep(60)
