@@ -37,8 +37,7 @@ def parse4(CIKcode):
         links = []
         for link in soup.find_all('a',href=True):
             links.append(link['href'])
-        del links[-3:]
-        links = links[-80:]
+        links = [l for l in links if l.startswith('/Archives/edgar/data/')]
         links = ['https://www.sec.gov'+ s for s in links]
         newlinks = link2form(links)
         start = -1
