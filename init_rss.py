@@ -247,4 +247,4 @@ while True:
             else:
                 print('Nothing to update')
             oldrss = newrss
-    time.sleep(60)
+    time.sleep(5)
